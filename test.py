@@ -2,6 +2,7 @@
 # pdf is a mixture of Gaussian (signal) and exponential (background),
 # truncated in [xMin,xMax].
 
+
 import numpy as np
 import scipy.stats as stats
 from scipy.stats import truncexpon
@@ -34,58 +35,54 @@ def f(x, par):
     return theta * fs + (1 - theta) * fb
 
 
-numVals = [100,200,400,800]
-sigmaMLE_ar = []
-for numVal in numVals:
-    np.random.seed(seed=1234567)
-    xData = np.empty([numVal])
-    for i in range(numVal):
-        r = np.random.uniform();
-        if r < theta:
-            xData[i] = stats.truncnorm.rvs(a=(xMin - mu) / sigma, b=(xMax - mu) / sigma, loc=mu, scale=sigma)
-        else:
-            xData[i] = stats.truncexpon.rvs(b=(xMax - xMin) / xi, loc=xMin, scale=xi)
+numVal = 200
+xData = np.empty([numVal])
+for i in range(numVal):
+    r = np.random.uniform();
+    if r < theta:
+        xData[i] = stats.truncnorm.rvs(a=(xMin - mu) / sigma, b=(xMax - mu) / sigma, loc=mu, scale=sigma)
+    else:
+        xData[i] = stats.truncexpon.rvs(b=(xMax - xMin) / xi, loc=xMin, scale=xi)
 
 
-    # Function to be minimized is negative log-likelihood
-    def negLogL(par):
-        pdf = f(xData, par)
-        return -np.sum(np.log(pdf))
+# Function to be minimized is negative log-likelihood
+def negLogL(par):
+    pdf = f(xData, par)
+    return -np.sum(np.log(pdf))
 
 
-    # Initialize Minuit and set up fit:
-    par = np.array([theta, mu, sigma, xi])  # initial values (here = true values)
-    parname = ['theta', 'mu', 'sigma', 'xi']
-    parstep = np.array([0.1, 1., 1., 1.])  # initial setp sizes
-    parfix = [False, True, True, False]  # change these to fix/free parameters
-    parlim = [(0., 1), (None, None), (0., None), (0., None)]  # set limits
-    m = Minuit(negLogL, par, name=parname)
-    m.errors = parstep
-    m.fixed = parfix
-    m.limits = parlim
-    m.errordef = 0.5  # errors from lnL = lnLmax - 0.5
+# Initialize Minuit and set up fit:
+par = np.array([theta, mu, sigma, xi])  # initial values (here = true values)
+parname = ['theta', 'mu', 'sigma', 'xi']
+parstep = np.array([0.1, 1., 1., 1.])  # initial setp sizes
+parfix = [False, False, False, False]  # change these to fix/free parameters
+parlim = [(0., 1), (None, None), (0., None), (0., None)]  # set limits
+m = Minuit(negLogL, par, name=parname)
+m.errors = parstep
+m.fixed = parfix
+m.limits = parlim
+m.errordef = 0.5  # errors from lnL = lnLmax - 0.5
 
-    # Do the fit, get errors, extract results
-    m.migrad()  # minimize -logL
-    MLE = m.values  # max-likelihood estimates
-    sigmaMLE = m.errors  # standard deviations
-    cov = m.covariance  # covariance matrix
-    rho = m.covariance.correlation()  # correlation coeffs.
-    sigmaMLE_ar.append(sigmaMLE[0])
-    print(sigmaMLE[0])
+# Do the fit, get errors, extract results
+m.migrad()  # minimize -logL
+MLE = m.values  # max-likelihood estimates
+sigmaMLE = m.errors  # standard deviations
+cov = m.covariance  # covariance matrix
+rho = m.covariance.correlation()  # correlation coeffs.
 
-plt.plot(numVals, sigmaMLE_ar)
-plt.title("Plot of std of MLE theta against n")
-plt.xlabel("numVal")
-plt.ylabel("standard deviation of MLE for theta")
-plt.show()
 # print(r"par index, name, estimate, standard deviation:")
 # for i in range(m.npar):
 #     if not m.fixed[i]:
 #         print("{:4d}".format(i), "{:<10s}".format(m.parameters[i]), " = ",
 #               "{:.6f}".format(MLE[i]), " +/- ", "{:.6f}".format(sigmaMLE[i]))
-
-
+#         print(sigmaMLE[0])
+num_free_params = [1,2,3,4]
+std_theta = [0.04453,0.052736,0.064456,0.085786]
+plt.plot(num_free_params, std_theta)
+plt.xlabel("number of free parameters")
+plt.ylabel("stand deviation of MLE theta")
+plt.title("Shows relationship between number of free parameters and sigma MLE theta")
+plt.show()
 # print()
 # print(r"free par indices, covariance, correlation coeff.:")
 # for i in range(m.npar):
@@ -93,7 +90,7 @@ plt.show()
 #         for j in range(m.npar):
 #             if not (m.fixed[j]):
 #                 print(i, j, "{:.6f}".format(cov[i, j]), "{:.6f}".format(rho[i, j]))
-
+#
 # # Plot fitted pdf
 # yMin = 0.
 # yMax = f(0., MLE) * 1.1
